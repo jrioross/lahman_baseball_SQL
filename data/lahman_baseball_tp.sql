@@ -24,12 +24,14 @@ ORDER BY P.height;
 --Sort this list in descending order by the total salary earned. 
 --Which Vanderbilt player earned the most money in the majors?
 	--David Price
+	
+--USE coalesce to move NULL values??
 
-SELECT DISTINCT c.playerid, SUM(s.salary), p.namelast, p.namefirst, c.schoolid
+SELECT DISTINCT c.playerid, SUM(s.salary) as salary, p.namelast, p.namefirst, c.schoolid
 FROM collegeplaying c
-JOIN people p
+LEFT JOIN people p
 ON p.playerid = c.playerid
-JOIN salaries s
+LEFT JOIN salaries s
 ON p.playerid = s.playerid
 WHERE c.schoolid LIKE '%vand%'
 GROUP BY c.playerid,p.namelast,p.namefirst,c.schoolid
@@ -40,6 +42,11 @@ ORDER BY SUM(s.salary) DESC;
 --label players with position OF as "Outfield", those with position "SS", "1B", "2B", 
 --and "3B" as "Infield", and those with position "P" or "C" as "Battery". 
 --Determine the number of putouts made by each of these three groups in 2016
+
+--Battery: 41424
+--infield: 58934
+--Outfield 29560
+
 SELECT DISTINCT sub.position fielding_group, SUM(sub.putouts) total_putouts
 FROM
 	(SELECT pos, SUM(po) AS putouts,
@@ -49,14 +56,70 @@ FROM
 	END AS position
 	FROM fielding
 	WHERE yearid = 2016
-	group by position,pos) as sub
+	group by position, pos) as sub
 GROUP BY position;
 
 --Question 5.
 --Find the average number of strikeouts per game by decade since 1920. 
 --Round the numbers you report to 2 decimal places. Do the same for home runs per game. 
 --Do you see any trends?
+--need homeruns
 
-SELECT COUNT(so)
+WITH d AS (
+SELECT t.so as strike_outs, t.g AS games,
+CASE WHEN yearid >= 1920 AND yearid <= 1929 THEN '1920s'
+WHEN yearid >= 1930 AND yearid<= 1939 THEN '1930s'
+WHEN yearid >= 1940 AND yearid<= 1949 THEN '1940S'
+WHEN yearid >= 1950 AND yearid<= 1959 THEN '1950S'
+WHEN yearid >= 1960 AND yearid<= 1969 THEN '1960s'
+WHEN yearid >= 1970 AND yearid<= 1979 THEN '1970s'
+WHEN yearid >= 1980 AND yearid<= 1989 THEN '1980s'
+WHEN yearid >= 1990 AND yearid<= 1999 THEN '1990s'
+WHEN yearid >= 2000 AND yearid<= 2009 THEN '2000s'
+WHEN yearid >= 2010 AND yearid<= 2019 THEN '2010s'
+WHEN yearid >= 2020 THEN '2020s'
+ELSE 'before 1920'
+END AS decade
+FROM teams t
+GROUP BY decade, t.so, t.g
+)
+SELECT DISTINCT decade, ROUND(CAST(SUM(d.strike_outs) AS numeric)/SUM(d.games),2) AS so_per_game
+FROM d
+WHERE decade <> 'before 1920'
+GROUP BY decade
+ORDER BY decade;
+
+--QUESTION 6
+--Find the player who had the most success stealing bases in 2016, 
+--where success is measured as the percentage of stolen base attempts which are successful. 
+--(A stolen base attempt results either in a stolen base or being caught stealing.)
+--Consider only players who attempted at least 20 stolen bases.
+
+WITH s AS(
+SELECT DISTINCT playerid, 
+sb-cs AS steals, sb+cs AS att_steals
 FROM batting
-WHERE yearid > 1920;
+WHERE yearid = 2016
+AND sb+cs >=20
+)
+SELECT p.namelast, p.namefirst, s.steals, s.att_steals, 
+ROUND(CAST(s.steals AS numeric)/s.att_steals*100,2) as percent_success
+FROM s
+LEFT JOIN people AS p
+ON p.playerid = s.playerid
+ORDER BY percent_success DESC;
+
+--QUESTION 7
+--From 1970 – 2016, what is the largest number of wins for a team that did 
+--not win the world series? What is the smallest number of wins for a team that 
+--did win the world series? Doing this will probably result in an unusually small 
+--number of wins for a world series champion – determine why this is the case. 
+--Then redo your query, excluding the problem year. 
+--How often from 1970 – 2016 was it the case that a team with the most wins also won 
+--the world series? What percentage of the time?
+
+SELECT w,wswin
+FROM teams
+
+
+
