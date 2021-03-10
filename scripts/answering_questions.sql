@@ -26,29 +26,105 @@ GROUP BY a.playerid, a.g_all, t.name;
 /* Eddie Gaedel is the shortest player in the dataset, at 43 inches.  He played in 1 game as a pinch hitter for the St. Louis Browns. */
 
 
-/*Find all players in the database who played at Vanderbilt University. Create a list showing each player’s first and last names as well as the total salary they earned in the major leagues. 
+/*3. Find all players in the database who played at Vanderbilt University. Create a list showing each player’s first and last names as well as the total salary they earned in the major leagues. 
 Sort this list in descending order by the total salary earned. Which Vanderbilt player earned the most money in the majors? */
-Select DISTINCT(p.namefirst), p.namelast, s.schoolname, salary.salary
+
+Select p.namefirst, p.namelast, s.schoolname, SUM(salary.salary) AS total_earned
 FROM people as p
-LeFT JOIN collegeplaying as c
+LEFT JOIN collegeplaying as c
 ON p.playerid=c.playerid
 LEFT JOIN schools as s
 ON c.schoolid=s.schoolid
 LEFT JOIN salaries as salary
 ON p.playerid=salary.playerid
 WHERE s.schoolname='Vanderbilt University'
-GROUP BY p.namefirst, p.namelast, s.schoolname, salary.salary
-ORDER BY salary.salary DESC;
-
-/*This query does not capture the players with NULL salaries*/
-Select p.namefirst, p.namelast, s.schoolname, SUM(salary.salary) AS total_earned
-FROM people as p
-INNER JOIN collegeplaying as c
-ON p.playerid=c.playerid
-INNER JOIN schools as s
-ON c.schoolid=s.schoolid
-INNER JOIN salaries as salary
-ON p.playerid=salary.playerid
-WHERE s.schoolname='Vanderbilt University'
 GROUP BY p.namefirst, p.namelast, s.schoolname
 ORDER BY total_earned DESC;
+
+/*4. Using the fielding table, group players into three groups based on their position: label players with position OF as "Outfield", 
+those with position "SS", "1B", "2B", and "3B" as "Infield", and those with position "P" or "C" as "Battery". 
+Determine the number of putouts made by each of these three groups in 2016.*/
+
+WITH player_groups AS
+(	SELECT playerid,
+		(CASE WHEN fielding.pos = 'OF' THEN 'Outfield'
+		WHEN fielding.pos IN('SS','1B','2B','3B') THEN 'Infield'
+		WHEN fielding.pos IN('P','C') THEN 'Battery'
+		ELSE 'Unknown'
+		END) AS position_group_2016
+	FROM fielding
+	WHERE yearid=2016 )
+SELECT position_group_2016, SUM(po)
+FROM fielding
+LEFT JOIN player_groups
+ON player_groups.playerid=fielding.playerid
+WHERE fielding.yearid=2016
+GROUP BY position_group_2016;
+
+
+/* 5. Find the average number of strikeouts per game by decade since 1920. 
+Round the numbers you report to 2 decimal places. Do the same for home runs per game. Do you see any trends? */
+
+--strikeouts
+WITH decades AS 
+(SELECT CAST(g, so,
+ (CASE WHEN yearid IN(1920, 1921, 1922, 1923, 1924, 1925, 1926, 1927, 1928, 1929) THEN '1920s'
+	WHEN yearid IN(1930, 1931, 1932, 1933, 1934, 1935, 1936, 1937, 1938, 1939) THEN '1930s'
+	WHEN yearid IN(1940, 1941, 1942, 1943, 1944, 1945, 1946, 1947, 1948, 1949) THEN '1940s'
+	WHEN yearid IN(1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957, 1958, 1959) THEN '1950s'
+	WHEN yearid IN(1960, 1961, 1962, 1963, 1964, 1965, 1966, 1967, 1968, 1969) THEN '1960s'
+	WHEN yearid IN(1970, 1971, 1972, 1973, 1974, 1975, 1976, 1977, 1978, 1979) THEN '1970s'
+	WHEN yearid IN(1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989) THEN '1980s'
+	WHEN yearid IN(1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999) THEN '1990s'
+	WHEN yearid IN(2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009) THEN '2000s'
+	WHEN yearid IN(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019) THEN '2010s' 
+  ELSE 'Unknown' END) as decade
+	FROM teams)
+SELECT ROUND(SUM(so*1.0000)/SUM(g),2) as avg_strikeouts_per_game, decade
+FROM decades
+GROUP BY decade
+ORDER BY decade ASC;
+--The average number of strikeouts per game is increasing each decade.
+
+--homeruns
+WITH decades AS 
+(SELECT g, hr,
+ (CASE WHEN yearid IN(1920, 1921, 1922, 1923, 1924, 1925, 1926, 1927, 1928, 1929) THEN '1920s'
+	WHEN yearid IN(1930, 1931, 1932, 1933, 1934, 1935, 1936, 1937, 1938, 1939) THEN '1930s'
+	WHEN yearid IN(1940, 1941, 1942, 1943, 1944, 1945, 1946, 1947, 1948, 1949) THEN '1940s'
+	WHEN yearid IN(1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957, 1958, 1959) THEN '1950s'
+	WHEN yearid IN(1960, 1961, 1962, 1963, 1964, 1965, 1966, 1967, 1968, 1969) THEN '1960s'
+	WHEN yearid IN(1970, 1971, 1972, 1973, 1974, 1975, 1976, 1977, 1978, 1979) THEN '1970s'
+	WHEN yearid IN(1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989) THEN '1980s'
+	WHEN yearid IN(1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999) THEN '1990s'
+	WHEN yearid IN(2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009) THEN '2000s'
+	WHEN yearid IN(2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019) THEN '2010s' 
+  ELSE 'Unknown' END) as decade
+	FROM teams)
+SELECT ROUND(SUM(hr*1.00)/SUM(g),2) as avg_homeruns_per_game, decade
+FROM decades
+GROUP BY decade
+ORDER BY decade ASC;
+--The average number of homeruns per game per decade is trending with an increase but is not as clear as the average number of strikeouts per game per decade.
+
+/* 6. Find the player who had the most success stealing bases in 2016, where success is measured as the percentage of stolen 
+base attempts which are successful. (A stolen base attempt results either in a stolen base or being caught stealing.) 
+Consider only players who attempted at least 20 stolen bases.*/
+
+WITH total_steal_attempts AS
+ (SELECT playerid, yearid, CAST(sb AS numeric), cs, (sb + cs) as total_attempts
+  FROM batting) 
+SELECT p.namefirst, p.namelast, t.playerid, t.sb, t.cs, ROUND(((t.sb / t.total_attempts)*100),2) as percent_stolen
+ FROM total_steal_attempts as t
+ INNER JOIN people as p
+ ON p.playerid=t.playerid
+ WHERE t.total_attempts >=20
+ AND t.yearid=2016
+ ORDER BY percent_stolen DESC
+ LIMIT 10;
+ --Chris Owings, who sucessfully stole 91% of their attempted steals in 2016.
+
+/*From 1970 – 2016, what is the largest number of wins for a team that did not win the world series? What is the smallest number of wins for a team 
+ that did win the world series? Doing this will probably result in an unusually small number of wins for a world series champion – determine why this is the case. 
+ Then redo your query, excluding the problem year. 
+ How often from 1970 – 2016 was it the case that a team with the most wins also won the world series? What percentage of the time? */
