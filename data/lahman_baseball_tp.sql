@@ -66,7 +66,7 @@ GROUP BY position;
 --need homeruns
 
 WITH d AS (
-SELECT t.so as strike_outs, t.g AS games,
+SELECT t.so as strike_outs, t.g AS games, t.hr AS home_runs,
 CASE WHEN yearid >= 1920 AND yearid <= 1929 THEN '1920s'
 WHEN yearid >= 1930 AND yearid<= 1939 THEN '1930s'
 WHEN yearid >= 1940 AND yearid<= 1949 THEN '1940S'
@@ -81,9 +81,11 @@ WHEN yearid >= 2020 THEN '2020s'
 ELSE 'before 1920'
 END AS decade
 FROM teams t
-GROUP BY decade, t.so, t.g
+GROUP BY decade, t.so, t.g, t.hr
 )
-SELECT DISTINCT decade, ROUND(CAST(SUM(d.strike_outs) AS numeric)/SUM(d.games),2) AS so_per_game
+SELECT DISTINCT decade, 
+	ROUND(CAST(SUM(d.strike_outs) AS numeric)/SUM(d.games),2) AS so_per_game,
+	ROUND(CAST(SUM(d.home_runs)AS numeric)/SUM(d.games),2) AS hr_per_game
 FROM d
 WHERE decade <> 'before 1920'
 GROUP BY decade
@@ -94,6 +96,9 @@ ORDER BY decade;
 --where success is measured as the percentage of stolen base attempts which are successful. 
 --(A stolen base attempt results either in a stolen base or being caught stealing.)
 --Consider only players who attempted at least 20 stolen bases.
+
+--Chris Owings
+
 
 WITH s AS(
 SELECT DISTINCT playerid, 
@@ -124,8 +129,7 @@ ORDER BY percent_success DESC;
 --remove 1981 and the 2006 St. Louis cardinals are the team that won the WS while 
 --having the the least regular season wins 
 
--- inner join?
-
+--this table is for the Mariners
 SELECT t.w, t.l, t.yearid, t.wswin, f.franchname
 FROM teams as t
 LEFT JOIN teamsfranchises as f
@@ -134,6 +138,7 @@ WHERE t.wswin = 'N'
 AND yearid > 1970
 ORDER BY t.w DESC;
 
+--This table is for the Dodgers/Cardinals
 SELECT t.w, t.l, t.yearid, t.wswin, f.franchname
 FROM teams as t
 LEFT JOIN teamsfranchises as f
@@ -142,16 +147,23 @@ WHERE t.wswin = 'Y'
 AND yearid > 1970
 AND yearid <> 1981
 ORDER BY t.w; 
+--This is for the percent of ws wins by team with most regular season wins...
+--I couldn't have done it without Joshua.  It's his query. 
+--I had many failed attempts and left part of one below this one....
+--I've commented them out. 
+WITH max_champ AS(
+SELECT MAX(w) AS max_w, yearid 
+FROM teams as t
+WHERE yearid >= 1970
+GROUP BY yearid
+)
+SELECT SUM(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END) AS ct_wswin, 
+ROUND(AVG(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END),2)*100 AS avg_wswin
+FROM max_champ as mc
+INNER JOIN teams as t
+ON mc.yearid = t.yearid AND mc.max_w = t.w;
 
-WITH team AS(
-SELECT t.w, t.yearid,t.wswin
-FROM teams AS t
-WHERE t.wswin = 'N'
-AND t.yearid > 1970)
-SELECT team.w 
-FROM team
-ORDER BY team.w DESC;
-
+/*
 SELECT
 MAX(w) OVER(PARTITION BY yearid), wswin, yearid, teamid,
 COUNT(wswin) OVER()
@@ -159,6 +171,7 @@ FROM teams
 WHERE yearid >= 1970
 AND wswin = 'Y'
 ORDER BY yearid;
+*/
 
 --Question 8.
 --Using the attendance figures from the homegames table, find the teams and 
@@ -167,7 +180,8 @@ ORDER BY yearid;
 --Only consider parks where there were at least 10 games played. Report the park name, 
 --team name, and average attendance. Repeat for the lowest 5 average attendance.
 
-WITH a1 as(
+
+
 SELECT park, team,
 	CASE WHEN attendance = 0 THEN 0 ELSE attendance/games 
 	END AS h_avg_att
@@ -175,42 +189,71 @@ FROM homegames
 WHERE year = 2016
 AND games >= 10
 ORDER BY h_avg_att DESC
-LIMIT 10
-)
-/*a2 as(
+LIMIT 10;
+
+
 SELECT park, team,
 	CASE WHEN attendance = 0 THEN 0 ELSE attendance/games 
 	END AS l_avg_att
 FROM homegames
 WHERE year = 2016
-AND games > 10
-ORDER BY l_avg_att ASC
-LIMIT 5
-)
-*/
-SELECT p.park_name, h_avg_att
-FROM parks AS p
-INNER join a1
-ON p.park = a1.park
---INNER JOIN a2
---ON p.park = a2.park
-ORDER BY h_avg_att DESC;
+AND games >= 10
+ORDER BY l_avg_att
+LIMIT 5;
+
+
+
+
 
 --QUESTION 9.
---Which managers have won the TSN Manager of the Year award in both the National League (NL) 
---and the American League (AL)? Give their full name and the teams that they were managing 
---when they won the award.
+--Which managers have won the TSN Manager of the Year award in both the 
+--National League (NL) and the American League (AL)? Give their 
+--full name and the teams that they were managing when they won the award.
+
+--again, Joshua to the rescue on this one....
+--I was able to set up my CTEs the same but got stuck with duplicates
+--I fee like I need much more practice in building queries from the bottom up and using 
+--different methods to extract data. 
+-- I AM REALLY LIKING SQL and am sorry to leave it even though it still feels foreign.
+--When I've been working on learning languages and spending time in foreign countries I've had 
+--the feeling of my brain wanting to switch over as it gains understanding.  I feel like 
+--that's happening in babysteps with SQL for me but I'm still just an infant. 
+--this is much more fun than building charts for people to look at. 
+
+--Davey Johnson with the 1997 Orioles and 2012 Senators
+--Jim Leyland with the 88,90,92 Pirates and 2006 Tigers
 
 WITH al AS(
-SELECT DISTINCT playerid
+SELECT playerid 
 FROM awardsmanagers
-WHERE awardid = 'TSN Manager of the Year'
+WHERE awardid LIKE 'TSN%'
 AND lgid = 'AL'
-)
+),
 nl AS(
-SELECT DISTINCT playerid
+SELECT playerid
 FROM awardsmanagers
-WHERE awardid = 'TSN Manager of the Year')
+WHERE awardid LIKE 'TSN%'
 AND lgid = 'NL'
+)
 
 
+SELECT DISTINCT am.playerid,
+		p.namefirst,
+		p.namelast,
+		am.lgid,
+		am.yearid,
+		tf.franchname
+FROM awardsmanagers AS am
+LEFT JOIN managers AS m
+USING (playerid, yearid)
+LEFT JOIN teamsfranchises AS tf
+ON m.teamid = tf.franchid
+LEFT JOIN people AS p
+USING (playerid)
+WHERE playerid IN
+	(SELECT *
+	FROM nl
+	INTERSECT
+	SELECT *
+	FROM al)
+ORDER BY namelast, yearid;
