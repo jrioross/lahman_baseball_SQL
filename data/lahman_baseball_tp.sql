@@ -118,8 +118,99 @@ ORDER BY percent_success DESC;
 --How often from 1970 – 2016 was it the case that a team with the most wins also won 
 --the world series? What percentage of the time?
 
-SELECT w,wswin
-FROM teams
+-- seattle Mariners with 106 wins
+--LA Dodgers with 63 wins 
+	--'81 is called the split season because of a players strike. 
+--remove 1981 and the 2006 St. Louis cardinals are the team that won the WS while 
+--having the the least regular season wins 
 
+-- inner join?
+
+SELECT t.w, t.l, t.yearid, t.wswin, f.franchname
+FROM teams as t
+LEFT JOIN teamsfranchises as f
+ON t.franchid = f.franchid
+WHERE t.wswin = 'N'
+AND yearid > 1970
+ORDER BY t.w DESC;
+
+SELECT t.w, t.l, t.yearid, t.wswin, f.franchname
+FROM teams as t
+LEFT JOIN teamsfranchises as f
+ON t.franchid = f.franchid
+WHERE t.wswin = 'Y'
+AND yearid > 1970
+AND yearid <> 1981
+ORDER BY t.w; 
+
+WITH team AS(
+SELECT t.w, t.yearid,t.wswin
+FROM teams AS t
+WHERE t.wswin = 'N'
+AND t.yearid > 1970)
+SELECT team.w 
+FROM team
+ORDER BY team.w DESC;
+
+SELECT
+MAX(w) OVER(PARTITION BY yearid), wswin, yearid, teamid,
+COUNT(wswin) OVER()
+FROM teams
+WHERE yearid >= 1970
+AND wswin = 'Y'
+ORDER BY yearid;
+
+--Question 8.
+--Using the attendance figures from the homegames table, find the teams and 
+--parks which had the top 5 average attendance per game in 2016 
+--(where average attendance is defined as total attendance divided by number of games).
+--Only consider parks where there were at least 10 games played. Report the park name, 
+--team name, and average attendance. Repeat for the lowest 5 average attendance.
+
+WITH a1 as(
+SELECT park, team,
+	CASE WHEN attendance = 0 THEN 0 ELSE attendance/games 
+	END AS h_avg_att
+FROM homegames
+WHERE year = 2016
+AND games >= 10
+ORDER BY h_avg_att DESC
+LIMIT 10
+)
+/*a2 as(
+SELECT park, team,
+	CASE WHEN attendance = 0 THEN 0 ELSE attendance/games 
+	END AS l_avg_att
+FROM homegames
+WHERE year = 2016
+AND games > 10
+ORDER BY l_avg_att ASC
+LIMIT 5
+)
+*/
+SELECT p.park_name, h_avg_att
+FROM parks AS p
+INNER join a1
+ON p.park = a1.park
+--INNER JOIN a2
+--ON p.park = a2.park
+ORDER BY h_avg_att DESC;
+
+--QUESTION 9.
+--Which managers have won the TSN Manager of the Year award in both the National League (NL) 
+--and the American League (AL)? Give their full name and the teams that they were managing 
+--when they won the award.
+
+WITH al AS(
+SELECT DISTINCT playerid
+FROM awardsmanagers
+WHERE awardid = 'TSN Manager of the Year'
+AND lgid = 'AL'
+)
+nl AS(
+SELECT DISTINCT playerid
+FROM awardsmanagers
+WHERE awardid = 'TSN Manager of the Year')
+AND lgid = 'NL'
 
 
