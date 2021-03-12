@@ -153,6 +153,27 @@ WHERE yearID BETWEEN '1970' AND '2016'
 GROUP BY teamID, yearID, wswin
 ORDER BY MAX(W) DESC
 
+WITH ws_loss as (
+SELECT COUNT(*) as Total_games, wswin, w, yearID FROM teams
+GROUP BY wswin, w, yearID)
+SELECT wswin, MAX(w) from ws_loss
+WHERE yearID BETWEEN '1970' AND '2016'
+GROUP BY yearID, wswin
+ORDER BY MAX(w) DESC	
+	
+
+--END of 7 "Heartbreak"	answer
+WITH ws_games as (
+SELECT (CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END) as wins, (CASE WHEN wswin = 'Y' or 'N' THEN COUNT(*) END) as total_games from teams
+GROUP by wswin)
+SELECT wins/total_games*100 from ws_games
+
+
+	
+	
+SELECT * from teamsfranchises
+	
+	
 --Question 8 
 --Top 5
 SELECT h.attendance, h.games, SUM(h.attendance/h.games) as avg_attendance, h.team, h.year, p.park_name, h.park, p.park from homegames as h 
@@ -172,7 +193,7 @@ Group BY p.park_name, h.attendance, h.games, h.team, h.year, p.park_name, h.park
 Order by avg_attendance
 LIMIT 5
 
-
+	
 WHERE year = 2016
 
 
@@ -198,11 +219,11 @@ SELECT name, lgid, teamid, yearid from teams)
 select DISTINCT(a.playerid), player_name.namefirst, player_name.namelast, a.awardid, a.yearid, team_managing.lgid from awardsmanagers as a
 JOIN player_name on player_name.playerid = a.playerid
 JOIN team_managing on team_managing.yearid = a.yearid
-WHERE a.awardid = 'TSN Manager of the Year' and team_managing.lgid = 'AL'
+WHERE a.awardid = 'TSN Manager of the Year'
 GROUP BY team_managing.lgid, a.playerid, player_name.namefirst, player_name.namelast, a.awardid, a.yearid
 ORDER BY a.yearid DESC
 
-
+--Original
 WITH player_name AS (
 SELECT namefirst, namelast, playerid from people),
 team_managing AS (
@@ -210,9 +231,18 @@ SELECT name, lgid, teamid, yearid from teams)
 select DISTINCT(a.playerid), player_name.namefirst, player_name.namelast, a.awardid, a.yearid from awardsmanagers as a
 JOIN player_name on player_name.playerid = a.playerid
 JOIN team_managing on team_managing.yearid = a.yearid
-WHERE a.awardid = 'TSN Manager of the Year' and team_managing.lgid = 'AL' and a.yearid = '2015'
+WHERE a.awardid = 'TSN Manager of the Year' and team_managing.lgid = 'AL'
+ORDER BY a.playerid
 
-
+WITH player_name AS (
+SELECT namefirst, namelast, playerid from people),
+team_managing AS (
+SELECT name, lgid, teamid, yearid from teams)
+select DISTINCT(a.playerid), player_name.namefirst, player_name.namelast, a.awardid, a.yearid, team_managing.lgid from awardsmanagers as a
+JOIN player_name on player_name.playerid = a.playerid
+JOIN team_managing on team_managing.yearid = a.yearid
+WHERE a.awardid = 'TSN Manager of the Year'
+ORDER BY a.yearid
 
 
 

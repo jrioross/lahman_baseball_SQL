@@ -1,0 +1,7 @@
+WITH ws_loss as (
+SELECT COUNT(*) as Total_games, wswin, w, yearID FROM teams
+GROUP BY wswin, w, yearID)
+SELECT wswin, MAX(w) from ws_loss
+WHERE yearID BETWEEN '1970' AND '2016'
+GROUP BY yearID, wswin
+ORDER BY MAX(w) DESC

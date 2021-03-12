@@ -1,0 +1,7 @@
+WITH hits as (
+	SELECT h, playerid from batting
+	where h >= '250')
+	SELECT p.namefirst, p.namelast, SUM(h) from people as p
+	JOIN hits on p.playerid = hits.playerid
+	GROUP BY p.playerid 
+	ORDER BY SUM(h) DESC
