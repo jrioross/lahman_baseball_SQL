@@ -156,37 +156,39 @@ WITH max_ws_champ AS (
 	GROUP BY yearid
 	)
 SELECT SUM(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END) AS ct_max_is_champ,
-		AVG(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END) AS perc_max_is_champ
+		ROUND(100*AVG(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END), 2) AS perc_max_is_champ
 FROM max_ws_champ AS m
 INNER JOIN teams AS t
 ON m.yearid = t.yearid AND m.max_w = t.w
---Max is champ: 12 teams. Percent max is champ: 22.6%
+--Max is champ: 12 teams. Percent max is champ: 22.64%
 
 --Q8
 
 --Top 5 Attendance in 2016
-	SELECT franchname,
+		SELECT team,
+			franchname,
 			park_name,
 			attendance/games AS avg_att
 	FROM homegames
-	INNER JOIN parks
+	LEFT JOIN parks
 	USING (park)
-	INNER JOIN teamsfranchises AS tf
+	LEFT JOIN teamsfranchises AS tf
 	ON homegames.team = tf.franchid
-	WHERE year = 2016 AND games > 10
+	WHERE year = 2016 AND games >= 10
 	ORDER BY attendance/games DESC
 	LIMIT 5
 
 --Bottom 5 Attendance in 2016
-	SELECT franchname,
+	SELECT team,
+			franchname,
 			park_name,
 			attendance/games AS avg_att
 	FROM homegames
-	INNER JOIN parks
+	LEFT JOIN parks
 	USING (park)
-	INNER JOIN teamsfranchises AS tf
+	LEFT JOIN teamsfranchises AS tf
 	ON homegames.team = tf.franchid
-	WHERE year = 2016 AND games > 10
+	WHERE year = 2016 AND games >= 10
 	ORDER BY attendance/games
 	LIMIT 5
 	
@@ -244,4 +246,115 @@ ORDER BY g_total_school DESC, g_total_player DESC;
 
 --Q11: Correlation between wins and team salary (after 2000)
 
-SELECT 
+--Solution using ranks
+WITH ts AS(
+	SELECT yearid,
+			teamid,
+			SUM(salary) AS team_salary
+	FROM salaries
+	GROUP BY yearid, teamid
+	ORDER BY yearid, teamid
+),
+sal_w_rk AS(
+	SELECT t.yearid,
+		t.teamid,
+		ts.team_salary,
+		t.w,
+		RANK() OVER(PARTITION BY t.yearid ORDER BY ts.team_salary DESC) AS team_sal_rk,
+		RANK() OVER(PARTITION BY t.yearid ORDER BY t.w DESC) AS team_w_rk
+FROM teams AS t
+LEFT JOIN ts
+USING (yearid, teamid)
+WHERE t.yearid >= 2000
+ORDER BY t.yearid, t.w DESC
+	)
+SELECT team_sal_rk,
+		ROUND(AVG(team_w_rk), 1) AS avg_w_rk
+FROM sal_w_rk
+GROUP BY team_sal_rk
+ORDER BY team_sal_rk
+--Salary is correlated with wins, though the slope isn't as steep as I'd expect (till #1)
+
+--Solution using correlation coefficient and regression slope
+WITH ts AS(
+	SELECT yearid,
+			teamid,
+			SUM(salary) AS team_salary
+	FROM salaries
+	GROUP BY yearid, teamid
+	ORDER BY yearid, teamid
+)
+SELECT corr(t.w, ts.team_salary) AS r_value,
+		regr_slope(t.w, ts.team_salary) * 10^7 AS w_per_ten_mil
+FROM teams AS t
+LEFT JOIN ts
+USING (yearid, teamid)
+WHERE t.yearid >= 2000
+--Pretty high r-value considering the number of data values. About 1 win per 10 million dollars.
+
+--Q12.i
+
+WITH w_att_rk AS (
+SELECT yearid,
+		teamid,
+		w,
+		attendance / ghome AS avg_h_att,
+		RANK() OVER(PARTITION BY yearid ORDER BY w) AS w_rk,
+		RANK() OVER(PARTITION BY yearid ORDER BY attendance / ghome) AS avg_h_att_rk
+FROM teams
+WHERE attendance / ghome IS NOT NULL
+AND yearid >= 1961 						--MLB institutes 162 game season
+ORDER BY yearid, teamid
+)
+SELECT avg_h_att_rk,
+		ROUND(AVG(w_rk), 1) AS avg_w_rk
+FROM w_att_rk
+GROUP BY avg_h_att_rk
+ORDER BY avg_h_att_rk
+--Very strong correlation between wins and home game attendance.
+
+--Q12.ii
+
+--After World Series Win
+WITH att_comp AS (
+SELECT yearid,
+		name,
+		attendance / ghome AS att_g,
+		lead(attendance / ghome) OVER(PARTITION BY name ORDER BY yearid) AS att_g_next_year,
+		lead(attendance / ghome) OVER(PARTITION BY name ORDER BY yearid) - (attendance/ghome) AS difference
+FROM teams AS t
+)
+SELECT ROUND(AVG(difference), 1) AS avg_att_dif
+FROM att_comp
+INNER JOIN teams AS t
+USING (yearid, name)
+WHERE wswin = 'Y'
+--Attendance improves, on average, by 267.1 people per home game.
+
+--After Playoff Berth
+WITH att_comp AS (
+SELECT yearid,
+		name,
+		attendance / ghome AS att_g,
+		lead(attendance / ghome) OVER(PARTITION BY name ORDER BY yearid) AS att_g_next_year,
+		lead(attendance / ghome) OVER(PARTITION BY name ORDER BY yearid) - (attendance/ghome) AS difference
+FROM teams AS t
+)
+SELECT ROUND(AVG(difference), 1) AS avg_att_dif
+FROM att_comp
+INNER JOIN teams AS t
+USING (yearid, name)
+WHERE wcwin = 'Y' OR divwin = 'Y'
+--Attendance improves, on average, by 561.9 people per home game.
+
+--Q13
+
+--Relative frequency of L vs R pitchers
+
+
+
+--Relative frequency of Cy Yound awards (relative to all and relative to group size)
+
+
+
+--Relative frequency of HOF Induction
