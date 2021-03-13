@@ -257,3 +257,36 @@ WHERE playerid IN
 	SELECT *
 	FROM al)
 ORDER BY namelast, yearid;
+
+--Question 10
+--Analyze all the colleges in the state of Tennessee. Which college 
+--has had the most success in the major leagues. 
+--Use whatever metric for success you like 
+-- - number of players, number of games, salaries, 
+--world series wins, etc.
+
+SELECT DISTINCT c.playerid, c.schoolid, s.schoolstate
+FROM collegeplaying c
+LEFT JOIN people p
+ON p.playerid = c.playerid
+LEFT JOIN schools as s
+ON c.schoolid = s.schoolid
+WHERE s.schoolstate = 'TN'
+--GROUP BY schoolid
+ORDER BY c.schoolid;
+
+--Question 11
+--Is there any correlation between number of wins and team salary? 
+--Use data from 2000 and later to answer this question. As you do this analysis, 
+--keep in mind that salaries across the whole league tend to 
+--increase together, so you may want to look on a year-by-year basis.
+
+SELECT t.teamid, t.w, s.salary
+--need to figure out how to sum salaries for each team for each year.
+FROM teams AS t
+LEFT JOIN salaries AS s
+USING(teamid)
+WHERE t.yearid >=2000
+ORDER BY t.w DESC;
+
+
