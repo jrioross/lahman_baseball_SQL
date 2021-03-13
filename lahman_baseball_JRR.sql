@@ -2,31 +2,39 @@
 SELECT MIN(year) AS starting_year,
 		MAX(year) AS ending_year
 FROM homegames;
+--1871 through 2016
 
 --Q2------------------------------------------------------------------------------------------
-SELECT p.namelast,
+SELECT DISTINCT p.namelast,
 		p.namefirst,
 		p.height,
-		a.teamid
+		SUM(a.g_all) AS total_g,
+		t.name AS team_name
 FROM people AS p
 LEFT JOIN appearances AS a
 USING (playerid)
-WHERE p.height = (SELECT MIN(height) FROM people);
+LEFT JOIN teams AS t
+USING (teamid, yearid)
+WHERE p.height = (SELECT MIN(height) FROM people)
+GROUP BY p.namelast, p.namefirst, p.height, t.name
+--Eddie Gaedel, 43 inches tall *games added
 
 --Q3------------------------------------------------------------------------------------------
 SELECT p.namefirst,
 		p.namelast,
 		SUM(COALESCE(s.salary,0)) AS total_salary
 FROM people AS p
-LEFT JOIN collegeplaying AS cp
+INNER JOIN (SELECT DISTINCT playerid, schoolid
+		   FROM collegeplaying) AS cp
 USING (playerid)
-LEFT JOIN schools AS sch
+INNER JOIN schools AS sch
 USING (schoolid)
-LEFT JOIN salaries AS s
+INNER JOIN salaries AS s
 USING (playerid)
 WHERE sch.schoolname = 'Vanderbilt University'
 GROUP BY p.namefirst, p.namelast
 ORDER BY total_salary DESC;
+--David Price, $81,851,296 (dang) *adjusted inner join
 
 --Q4------------------------------------------------------------------------------------------
 WITH fielding_grouped AS (
@@ -42,8 +50,10 @@ WITH fielding_grouped AS (
 SELECT pos_group,
 		SUM(po)
 FROM fielding_grouped
-WHERE yearid = 1996
+WHERE yearid = 2016
 GROUP BY pos_group;
+--Battery: $32,893; Infield: $59,185; Outfield: $29,600
+-- * Fixed year
 
 --Q5------------------------------------------------------------------------------------------
 
@@ -89,18 +99,19 @@ WITH b AS (
 SELECT b.playerid,
 		namefirst,
 		namelast,
-		ROUND(1.00*sb/(sb+cs) * 100, 2) AS sb_perc
+		ROUND(1.00*sb/(sb+cs) * 100, 2) AS sb_perc --experimenting with other ways of converting to numeric
 FROM b
 INNER JOIN people AS p
 USING (playerid)
 WHERE 1.00*sb/(sb+cs) = (SELECT MAX(1.00*sb/(sb+cs)) FROM b)
+--Chris Owings, 91.30%
 
 --Q7------------------------------------------------------------------------------------------
 
 WITH ws_champ AS (
 	SELECT yearid,
 			g,
-			teamid,
+			name,
 			w
 	FROM teams
 	WHERE wswin = 'N'
@@ -108,7 +119,7 @@ WITH ws_champ AS (
 	)
 SELECT yearid,
 		g,
-		teamid,
+		name,
 		w
 FROM ws_champ
 WHERE w = (SELECT MAX(w) FROM ws_champ);
@@ -117,7 +128,7 @@ WHERE w = (SELECT MAX(w) FROM ws_champ);
 WITH ws_champ AS (
 	SELECT yearid,
 			g,
-			teamid,
+			name,
 			w
 	FROM teams
 	WHERE wswin = 'Y'
@@ -125,7 +136,7 @@ WITH ws_champ AS (
 	)
 SELECT yearid,
 		g,
-		teamid,
+		name,
 		w
 FROM ws_champ
 WHERE w = (SELECT MIN(w) FROM ws_champ)
@@ -134,7 +145,7 @@ WHERE w = (SELECT MIN(w) FROM ws_champ)
 WITH ws_champ AS (
 	SELECT yearid,
 			g,
-			teamid,
+			name,
 			w
 	FROM teams
 	WHERE wswin = 'Y'
@@ -143,7 +154,7 @@ WITH ws_champ AS (
 	)
 SELECT yearid,
 		g,
-		teamid,
+		name,
 		w
 FROM ws_champ
 WHERE w = (SELECT MIN(w) FROM ws_champ)
@@ -155,6 +166,7 @@ WITH max_ws_champ AS (
 	FROM teams
 	WHERE yearid BETWEEN 1970 AND 2016
 	GROUP BY yearid
+	ORDER BY yearid
 	)
 SELECT SUM(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END) AS ct_max_is_champ,
 		ROUND(100*AVG(CASE WHEN wswin = 'Y' THEN 1 ELSE 0 END), 2) AS perc_max_is_champ
@@ -238,12 +250,15 @@ SELECT DISTINCT schoolname,
 FROM appearances AS a
 INNER JOIN people AS p
 USING (playerid)
-INNER JOIN collegeplaying AS cp
+INNER JOIN (SELECT DISTINCT playerid, schoolid
+			FROM collegeplaying) AS cp
 USING (playerid)
 INNER JOIN schools
 USING (schoolid)
 WHERE schoolstate = 'TN'
 ORDER BY g_total_school DESC, g_total_player DESC;
+--University of Tennessee had the most total games played in MLB
+-- * Updated to remove duplicates
 
 --Q11: Correlation between wins and team salary (after 2000)---------------------------------
 
@@ -356,12 +371,11 @@ SELECT SUM(CASE WHEN throws = 'L' THEN 1 ELSE 0 END) AS ct_L,
 		SUM(CASE WHEN throws = 'R' THEN 1 ELSE 0 END) AS ct_R,
 		ROUND(AVG(CASE WHEN throws = 'R' THEN 1 ELSE 0 END), 4) AS perc_R
 FROM people
-LEFT JOIN (
-	SELECT DISTINCT playerid
+WHERE playerid IN
+	(SELECT DISTINCT playerid
 	FROM pitching
-	) AS dist_pitch
-USING (playerid)
---L: 19.12%, R: 75.76%
+	)
+--L: 26.63%, R: 71.01%
 
 --Relative frequency of Cy Young Awards (relative to all and relative to group size)
 
