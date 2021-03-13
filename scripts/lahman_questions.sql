@@ -122,7 +122,7 @@ Consider only players who attempted at least 20 stolen bases.*/
 WITH total_steal_attempts AS
  (SELECT playerid, yearid, CAST(sb AS numeric), cs, (sb + cs) as total_attempts
   FROM batting) 
-SELECT p.namefirst, p.namelast, t.playerid, t.sb, t.cs, ROUND(((t.sb / t.total_attempts)*100),2) as percent_stolen
+SELECT p.namefirst || ' ' || p.namelast, t.playerid, t.sb, t.cs, ROUND(((t.sb / t.total_attempts)*100),2) as percent_stolen
  FROM total_steal_attempts as t
  INNER JOIN people as p
  	ON p.playerid=t.playerid
@@ -221,13 +221,32 @@ ON m.yearid=t.yearid AND m.most_wins=t.w
  
  /* 9. Which managers have won the TSN Manager of the Year award in both the National League (NL) and the 
  American League (AL)? Give their full name and the teams that they were managing when they won the award.*/
-SELECT  a.playerid, a.yearid, p.namefirst, p.namelast, t.teamid as team_managed
+ 
+WITH am_lg AS
+ (	SELECT playerid
+ 	FROM awardsmanagers
+   	WHERE awardid='TSN Manager of the Year'
+  	AND lgid = 'AL'
+ ),
+ nl_lg AS
+ (	SELECT playerid
+ 	FROM awardsmanagers
+   	WHERE awardid='TSN Manager of the Year'
+  	AND lgid = 'NL'
+ )
+SELECT DISTINCT a.awardid, a.lgid, p.namefirst ||' '|| p.namelast as full_name, a.yearid, m.teamid AS team
  FROM awardsmanagers AS a
- LEFT JOIN people AS p
- ON a.playerid=p.playerid
- LEFT JOIN teams as t
- ON a.yearid=t.yearid
- WHERE a.awardid='TSN Manager of the Year'
- GROUP BY a.yearid, a.playerid, p.namefirst, p.namelast, t.teamid
- --Do this for AL and NL as CTEs
---USE INTERSECT
+INNER JOIN people AS p
+ON a.playerid=p.playerid 
+INNER JOIN managers AS m
+ ON a.yearid=m.yearid AND a.playerid=m.playerid
+WHERE p.playerid IN (SELECT playerid
+	FROM am_lg
+	INTERSECT
+	SELECT playerid
+	 FROM nl_lg)
+AND a.awardid='TSN Manager of the Year'
+ ORDER BY full_name, a.yearid ASC
+
+/* This returns six results, composed of two managers: Jim Leyland and Davey Johnson. */
+ 
