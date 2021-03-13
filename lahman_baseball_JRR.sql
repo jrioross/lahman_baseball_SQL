@@ -166,31 +166,31 @@ ON m.yearid = t.yearid AND m.max_w = t.w
 --Q8------------------------------------------------------------------------------------------
 
 --Top 5 Attendance in 2016
-		SELECT team,
-			franchname,
+	SELECT team,
+			name,
 			park_name,
-			attendance/games AS avg_att
-	FROM homegames
+			hg.attendance/ hg.games AS avg_att
+	FROM homegames AS hg
 	LEFT JOIN parks
 	USING (park)
-	LEFT JOIN teamsfranchises AS tf
-	ON homegames.team = tf.franchid
+	LEFT JOIN teams AS t
+	ON hg.team = t.teamid AND hg.year = t.yearid
 	WHERE year = 2016 AND games >= 10
-	ORDER BY attendance/games DESC
+	ORDER BY hg.attendance/hg.games DESC
 	LIMIT 5
 
 --Bottom 5 Attendance in 2016
 	SELECT team,
-			franchname,
+			name,
 			park_name,
-			attendance/games AS avg_att
-	FROM homegames
+			hg.attendance/ hg.games AS avg_att
+	FROM homegames AS hg
 	LEFT JOIN parks
 	USING (park)
-	LEFT JOIN teamsfranchises AS tf
-	ON homegames.team = tf.franchid
+	LEFT JOIN teams AS t
+	ON hg.team = t.teamid AND hg.year = t.yearid
 	WHERE year = 2016 AND games >= 10
-	ORDER BY attendance/games
+	ORDER BY hg.attendance/hg.games
 	LIMIT 5
 	
 --Q9------------------------------------------------------------------------------------------
