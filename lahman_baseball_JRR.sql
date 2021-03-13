@@ -1,9 +1,9 @@
---Q1
+--Q1------------------------------------------------------------------------------------------
 SELECT MIN(year) AS starting_year,
 		MAX(year) AS ending_year
 FROM homegames;
 
---Q2
+--Q2------------------------------------------------------------------------------------------
 SELECT p.namelast,
 		p.namefirst,
 		p.height,
@@ -13,7 +13,7 @@ LEFT JOIN appearances AS a
 USING (playerid)
 WHERE p.height = (SELECT MIN(height) FROM people);
 
---Q3
+--Q3------------------------------------------------------------------------------------------
 SELECT p.namefirst,
 		p.namelast,
 		SUM(COALESCE(s.salary,0)) AS total_salary
@@ -28,7 +28,7 @@ WHERE sch.schoolname = 'Vanderbilt University'
 GROUP BY p.namefirst, p.namelast
 ORDER BY total_salary DESC;
 
---Q4
+--Q4------------------------------------------------------------------------------------------
 WITH fielding_grouped AS (
 	SELECT playerid,
 		yearid,
@@ -45,7 +45,7 @@ FROM fielding_grouped
 WHERE yearid = 1996
 GROUP BY pos_group;
 
---Q5
+--Q5------------------------------------------------------------------------------------------
 
 --Strikeouts per game
 WITH teams_grouped AS (
@@ -75,7 +75,8 @@ FROM teams_grouped
 GROUP BY decade
 ORDER BY decade;
 
---Q6
+--Q6------------------------------------------------------------------------------------------
+
 WITH b AS (
 	SELECT playerid,
 			yearid,
@@ -94,7 +95,7 @@ INNER JOIN people AS p
 USING (playerid)
 WHERE 1.00*sb/(sb+cs) = (SELECT MAX(1.00*sb/(sb+cs)) FROM b)
 
---Q7
+--Q7------------------------------------------------------------------------------------------
 
 WITH ws_champ AS (
 	SELECT yearid,
@@ -162,7 +163,7 @@ INNER JOIN teams AS t
 ON m.yearid = t.yearid AND m.max_w = t.w
 --Max is champ: 12 teams. Percent max is champ: 22.64%
 
---Q8
+--Q8------------------------------------------------------------------------------------------
 
 --Top 5 Attendance in 2016
 		SELECT team,
@@ -192,7 +193,7 @@ ON m.yearid = t.yearid AND m.max_w = t.w
 	ORDER BY attendance/games
 	LIMIT 5
 	
---Q9
+--Q9------------------------------------------------------------------------------------------
 WITH NL_TSN AS (
 	SELECT playerid
 	FROM awardsmanagers AS aw
@@ -228,7 +229,7 @@ ORDER BY namelast, yearid;
 
 --Open-Ended Questions-----------------------------------------------------------------------------------------
 
---Q10: Select which colleges in TN have players with the most games in the MLB
+--Q10: Select which colleges in TN have players with the most games in the MLB-----------------
 
 SELECT DISTINCT schoolname,
 		playerid, namefirst, namelast,
@@ -244,7 +245,7 @@ USING (schoolid)
 WHERE schoolstate = 'TN'
 ORDER BY g_total_school DESC, g_total_player DESC;
 
---Q11: Correlation between wins and team salary (after 2000)
+--Q11: Correlation between wins and team salary (after 2000)---------------------------------
 
 --Solution using ranks
 WITH ts AS(
@@ -292,7 +293,7 @@ USING (yearid, teamid)
 WHERE t.yearid >= 2000
 --Pretty high r-value considering the number of data values. About 1 win per 10 million dollars.
 
---Q12.i
+--Q12.i--------------------------------------------------------------------------------------
 
 WITH w_att_rk AS (
 SELECT yearid,
@@ -347,14 +348,146 @@ USING (yearid, name)
 WHERE wcwin = 'Y' OR divwin = 'Y'
 --Attendance improves, on average, by 561.9 people per home game.
 
---Q13
+--Q13----------------------------------------------------------------------------------------
 
 --Relative frequency of L vs R pitchers
+SELECT SUM(CASE WHEN throws = 'L' THEN 1 ELSE 0 END) AS ct_L,
+		ROUND(AVG(CASE WHEN throws = 'L' THEN 1 ELSE 0 END), 4) AS perc_L,
+		SUM(CASE WHEN throws = 'R' THEN 1 ELSE 0 END) AS ct_R,
+		ROUND(AVG(CASE WHEN throws = 'R' THEN 1 ELSE 0 END), 4) AS perc_R
+FROM people
+LEFT JOIN (
+	SELECT DISTINCT playerid
+	FROM pitching
+	) AS dist_pitch
+USING (playerid)
+--L: 19.12%, R: 75.76%
 
+--Relative frequency of Cy Young Awards (relative to all and relative to group size)
 
+WITH cy_young AS (
+	SELECT *
+	FROM awardsplayers
+	WHERE awardid = 'Cy Young Award'
+	),
+left_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'L'
+	),
+right_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'R'
+	)
+SELECT ROUND(AVG(CASE WHEN p.throws = 'L' THEN 1
+		  		WHEN p.throws = 'R' THEN 0 END), 4) AS perc_CY_L,
+		ROUND(AVG(CASE WHEN p.throws = 'R' THEN 1
+		  		WHEN p.throws = 'L' THEN 0 END), 4) AS perc_CY_R
+FROM people AS p
+INNER JOIN cy_young
+USING (playerid)
+--L: 33.04%, R: 66.96%
 
---Relative frequency of Cy Yound awards (relative to all and relative to group size)
-
-
+WITH cy_young AS (
+	SELECT *
+	FROM awardsplayers
+	WHERE awardid = 'Cy Young Award'
+	),
+left_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'L'
+	),
+right_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'R'
+	)
+SELECT 'Left' AS Arm,
+		ROUND(AVG(CASE WHEN awardid = 'Cy Young Award' THEN 1
+		  				ELSE 0 END), 4) AS perc_CY
+FROM left_pitchers AS l
+LEFT JOIN cy_young
+USING (playerid)
+UNION
+SELECT 'Right' AS Arm,
+		ROUND(AVG(CASE WHEN awardid = 'Cy Young Award' THEN 1
+		  				ELSE 0 END), 4) AS perc_CY
+FROM right_pitchers AS r
+LEFT JOIN cy_young
+USING (playerid)
+--1.49% of left handers win the Cy Young, while 1.13% of right handers win the Cy Young
 
 --Relative frequency of HOF Induction
+WITH hof_pitchers AS (
+	SELECT *
+	FROM halloffame
+	INNER JOIN pitching
+	USING (playerid)
+	WHERE inducted = 'Y'
+	)
+SELECT ROUND(AVG(CASE WHEN throws = 'L' THEN 1
+		  		ELSE 0 END), 4) AS perc_HOF_L_pitch,
+		ROUND(AVG(CASE WHEN throws = 'R' THEN 1
+		  		ELSE 0 END), 4) AS perc_HOF_R_pitch
+FROM hof_pitchers
+INNER JOIN people
+USING (playerid)
+--Percent of HOF pitchers who are lefty: 22.51%, righty: 77.49%
+				
+WITH hof_pitchers AS (
+	SELECT *
+	FROM halloffame
+	INNER JOIN pitching
+	USING (playerid)
+	WHERE inducted = 'Y'
+	),
+left_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'L'
+	),
+right_pitchers AS (
+	SELECT *
+	FROM people
+	WHERE playerid IN
+		(SELECT DISTINCT playerid
+		FROM pitching
+		)
+	AND throws = 'R'
+	)
+SELECT 'Left' AS Arm,
+		ROUND(AVG(CASE WHEN inducted = 'Y' THEN 1
+		  				ELSE 0 END), 4) AS perc_HOF
+FROM left_pitchers AS l
+LEFT JOIN hof_pitchers
+USING (playerid)
+UNION
+SELECT 'Right' AS Arm,
+		ROUND(AVG(CASE WHEN inducted = 'Y' THEN 1
+		  				ELSE 0 END), 4) AS perc_HOF
+FROM right_pitchers AS r
+LEFT JOIN hof_pitchers
+USING (playerid)
+--Percent of lefty pitchers who enter HOF: 11.18%, Righties: 14.02%
